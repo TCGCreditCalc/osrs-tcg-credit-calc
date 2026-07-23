@@ -50,7 +50,7 @@ export const CrossoverChart: React.FC<ChartProps> = ({
           margin={{
             top: 20,
             right: 30,
-            left: 20,
+            left: 35,
             bottom: 20,
           }}
         >
@@ -60,11 +60,11 @@ export const CrossoverChart: React.FC<ChartProps> = ({
             stroke="#aaa"
             type="number"
             domain={['dataMin', 'dataMax']}
-            label={{ value: 'Primary Level', position: 'bottom', fill: '#aaa' }} 
+            label={{ value: 'Primary Level', position: 'bottom', fill: '#aaa', offset: 0 }} 
           />
           <YAxis 
             stroke="#aaa"
-            label={{ value: 'Credits / Hour', angle: -90, position: 'insideLeft', fill: '#aaa' }} 
+            label={{ value: 'Credits / Hour', angle: -90, position: 'insideLeft', fill: '#aaa', dx: -35 }} 
           />
           <Tooltip 
             contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333' }}

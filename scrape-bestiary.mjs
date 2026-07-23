@@ -46,7 +46,25 @@ async function run() {
         const tds = $(el).find('td');
         if (tds.length >= 5) {
           // 0: Img, 1: Name, 2: Members, 3: Combat, 4: HP, ...
-          const name = $(tds[1]).text().trim();
+          const rawHtml = $(tds[1]).html() || '';
+          let cleanHtml = rawHtml.replace(/<br[^>]*>/gi, ' ').replace(/<small[^>]*>/gi, ' ').replace(/<\/small>/gi, ' ');
+          let fullText = cheerio.load(cleanHtml).text().replace(/\s+/g, ' ').trim();
+          
+          const aTag = $(tds[1]).find('a').first();
+          let baseName = aTag.text().trim();
+          
+          let variant = '';
+          if (baseName && fullText.startsWith(baseName) && fullText.length > baseName.length) {
+             variant = fullText.substring(baseName.length).trim();
+          } else if (!baseName) {
+             baseName = fullText;
+          }
+
+          if (variant.startsWith('(') && variant.endsWith(')')) {
+             variant = variant.slice(1, -1).trim();
+          }
+
+          const name = baseName;
           const combatText = $(tds[3]).text().trim();
           const hpText = $(tds[4]).text().trim();
           
@@ -63,6 +81,7 @@ async function run() {
               uniqueMap.set(uniqueKey, {
                 id: id,
                 name: name,
+                variant: variant,
                 combatLevel: combat,
                 hitpoints: hp,
                 imageUrl: `https://oldschool.runescape.wiki/images/${name.replace(/ /g, '_')}.png`,

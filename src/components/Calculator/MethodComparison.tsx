@@ -6,6 +6,17 @@ import { CrossoverChart } from './CrossoverChart';
 import { POPULAR_MONSTERS } from '../../utils/data';
 import { LevelRewardsModal } from './LevelRewardsModal';
 
+const getDisplayTitle = (config: MethodConfig) => {
+  if (config.skillType === 'skilling') {
+    return 'Skilling Method';
+  }
+  const combatStyle = config.skillType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  if (config.monster) {
+    return `${combatStyle} vs ${config.monster.name}`;
+  }
+  return `${combatStyle} Method`;
+};
+
 const MethodInput: React.FC<{
   config: MethodConfig;
   onChange: (config: MethodConfig) => void;
@@ -16,7 +27,7 @@ const MethodInput: React.FC<{
   const baseMonsterOptions = React.useMemo(() => 
     POPULAR_MONSTERS.map(m => ({ 
       value: m.id, 
-      label: `${m.name} (Lvl ${m.combatLevel})`, 
+      label: `${m.name} ${m.variant ? m.variant + ' ' : ''}(Lvl ${m.combatLevel})`, 
       monster: m 
     })), 
   []);
@@ -36,9 +47,11 @@ const MethodInput: React.FC<{
     }, 0);
   };
 
+  const displayTitle = React.useMemo(() => getDisplayTitle(config), [config]);
+
   return (
     <div className="card" style={{ padding: '1rem', backgroundColor: '#1f1f1f', borderRadius: '8px', marginBottom: '1rem' }}>
-      <h3 style={{ marginTop: 0, color: '#f39c12' }}>{config.name}</h3>
+      <h3 style={{ marginTop: 0, color: '#f39c12' }}>{displayTitle}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
         <div>
           <label>Skill Type</label>
@@ -76,7 +89,7 @@ const MethodInput: React.FC<{
             value={config.startLevel} 
 
             onDoubleClick={handleDoubleClick}
-            onChange={(e) => onChange({ ...config, startLevel: Math.max(1, Math.min(99, Number(e.target.value))) })}
+            onChange={(e) => onChange({ ...config, startLevel: Math.min(99, Number(e.target.value)) })}
             style={{ width: '100%', padding: '0.5rem', background: '#333', color: '#fff', border: '1px solid #444', borderRadius: '4px' }}
           />
         </div>
@@ -89,23 +102,60 @@ const MethodInput: React.FC<{
             value={config.targetLevel} 
 
             onDoubleClick={handleDoubleClick}
-            onChange={(e) => onChange({ ...config, targetLevel: Math.max(2, Math.min(99, Number(e.target.value))) })}
+            onChange={(e) => onChange({ ...config, targetLevel: Math.min(99, Number(e.target.value)) })}
             style={{ width: '100%', padding: '0.5rem', background: '#333', color: '#fff', border: '1px solid #444', borderRadius: '4px' }}
           />
         </div>
+
+        {config.skillType !== 'skilling' && (
+          <>
+            <div>
+              <label>Start HP Level</label>
+              <input 
+                type="number" 
+                min="10" max="99" 
+                value={config.startHpLevel ?? config.startLevel} 
+                onDoubleClick={handleDoubleClick}
+                onChange={(e) => onChange({ ...config, startHpLevel: Math.min(99, Number(e.target.value)) })}
+                style={{ width: '100%', padding: '0.5rem', background: '#333', color: '#fff', border: '1px solid #444', borderRadius: '4px' }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginTop: '1.2rem' }}>
+                <input 
+                  type="checkbox" 
+                  checked={config.enableHpCredits ?? true}
+                  onChange={(e) => onChange({ ...config, enableHpCredits: e.target.checked })}
+                />
+                Calculate HP Credits
+              </label>
+            </div>
+          </>
+        )}
 
         {config.skillType !== 'skilling' && (
           <div style={{ gridColumn: '1 / -1' }}>
             <label>Target Monster</label>
             <Select
               options={filteredOptions}
-              value={config.monster ? { value: config.monster.id, label: `${config.monster.name} (Lvl ${config.monster.combatLevel})`, monster: config.monster } : null}
+              value={config.monster ? { value: config.monster.id, label: `${config.monster.name} ${config.monster.variant ? config.monster.variant + ' ' : ''}(Lvl ${config.monster.combatLevel})`, monster: config.monster } : null}
               onInputChange={(val, actionMeta) => {
                 if (actionMeta.action === 'input-change') {
                   setInputValue(val);
                 }
               }}
               filterOption={() => true} 
+              formatOptionLabel={(option) => (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div>{option.monster.name} <span style={{ color: '#888', fontSize: '0.9em' }}>(Lvl {option.monster.combatLevel})</span></div>
+                  {option.monster.variant && (
+                    <div style={{ fontSize: '0.75rem', color: '#aaa', fontStyle: 'italic', marginTop: '-2px' }}>
+                      {option.monster.variant}
+                    </div>
+                  )}
+                </div>
+              )}
               onChange={(selected) => {
                 onChange({ ...config, monster: selected ? selected.monster : null });
               }}
@@ -122,7 +172,10 @@ const MethodInput: React.FC<{
             {config.monster && (
               <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <img src={config.monster.imageUrl} alt={config.monster.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                <span>{config.monster.name} - HP: {config.monster.hitpoints} | Combat: {config.monster.combatLevel}</span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>{config.monster.name} - HP: {config.monster.hitpoints} | Combat: {config.monster.combatLevel}</span>
+                  {config.monster.variant && <span style={{ fontSize: '0.8rem', fontStyle: 'italic', color: '#888' }}>{config.monster.variant}</span>}
+                </div>
               </div>
             )}
           </div>
@@ -156,7 +209,7 @@ const MethodInput: React.FC<{
                   onDoubleClick={handleDoubleClick}
                   onChange={(e) => onChange({ 
                     ...config, 
-                    secondarySkill: { ...config.secondarySkill!, startLevel: Math.max(1, Math.min(99, Number(e.target.value))) } 
+                    secondarySkill: { ...config.secondarySkill!, startLevel: Math.min(99, Number(e.target.value)) } 
                   })}
                   style={{ width: '100%', padding: '0.5rem', background: '#333', color: '#fff', border: '1px solid #444', borderRadius: '4px' }}
                 />
@@ -240,7 +293,7 @@ export const MethodComparison: React.FC = () => {
               {method.config.skillType === 'skilling' ? (
                 <>
                   <tr>
-                    <td style={{ padding: '0.3rem 0', color: '#aaa' }}>Passive XP Bonus</td>
+                    <td style={{ padding: '0.3rem 0', color: '#aaa' }}>Passive XP <span style={{ color: '#666', fontSize: '0.85em' }}>({method.results.stats.primaryXpGained.toLocaleString()} XP)</span></td>
                     <td style={{ padding: '0.3rem 0', textAlign: 'right', color: '#ddd' }}>{method.results.breakdown.creditsFromSkillingXp.toLocaleString()}</td>
                   </tr>
                   <tr>
@@ -257,7 +310,7 @@ export const MethodComparison: React.FC = () => {
               ) : (
                 <>
                   <tr>
-                    <td style={{ padding: '0.3rem 0', color: '#aaa' }}>Monster Kills</td>
+                    <td style={{ padding: '0.3rem 0', color: '#aaa' }}>Monster Kills {method.config.monster && <span style={{ color: '#666', fontSize: '0.85em' }}>({method.results.stats.totalKills.toLocaleString()} kills)</span>}</td>
                     <td style={{ padding: '0.3rem 0', textAlign: 'right', color: '#ddd' }}>{method.results.breakdown.creditsFromKills.toLocaleString()}</td>
                   </tr>
                   <tr>
@@ -300,9 +353,9 @@ export const MethodComparison: React.FC = () => {
         <h2 style={{ textAlign: 'center', marginTop: 0, color: '#f39c12' }}>Diminishing Returns Plotter (Credits/Hr vs Level)</h2>
         <CrossoverChart 
           method1Data={method1.results.dataPoints} 
-          method1Name={method1.config.name}
+          method1Name={getDisplayTitle(method1.config)}
           method2Data={method2.results.dataPoints}
-          method2Name={method2.config.name}
+          method2Name={getDisplayTitle(method2.config)}
         />
       </div>
     </div>

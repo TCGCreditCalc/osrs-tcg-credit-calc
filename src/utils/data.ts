@@ -3,6 +3,7 @@ import monstersJson from './monsters.json';
 export interface Monster {
   id: string;
   name: string;
+  variant?: string;
   combatLevel: number;
   hitpoints: number;
   imageUrl: string;

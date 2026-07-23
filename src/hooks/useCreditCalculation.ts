@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   experienceForLevel, 
   levelForExperience, 
@@ -22,6 +22,8 @@ export interface MethodConfig {
     xpPerHour: number;
   };
   monster?: Monster | null; 
+  startHpLevel?: number;
+  enableHpCredits?: boolean;
 }
 
 export interface DataPoint {
@@ -34,7 +36,21 @@ export interface DataPoint {
 }
 
 export function useCreditCalculation(initialConfig: MethodConfig) {
-  const [config, setConfig] = useState<MethodConfig>(initialConfig);
+  const [config, setConfig] = useState<MethodConfig>(() => {
+    try {
+      const saved = localStorage.getItem(`tcg-calc-config-${initialConfig.id}`);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Error loading config from localStorage', e);
+    }
+    return initialConfig;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`tcg-calc-config-${config.id}`, JSON.stringify(config));
+  }, [config]);
 
   const results = useMemo(() => {
     const { skillType, startLevel, targetLevel, xpPerHour, secondarySkill, monster } = config;
@@ -51,7 +67,9 @@ export function useCreditCalculation(initialConfig: MethodConfig) {
     let previousLevel = safeStartLevel;
     
     // Combat / HP State
-    const startHpLevel = safeStartLevel; 
+    const safeStartHpLevel = Math.max(1, Math.min(config.startHpLevel ?? safeStartLevel, 99));
+    const isHpEnabled = config.enableHpCredits ?? true;
+    const startHpLevel = safeStartHpLevel; 
     let currentHpXp = experienceForLevel(startHpLevel);
     let previousHpLevel = startHpLevel;
 
@@ -64,6 +82,8 @@ export function useCreditCalculation(initialConfig: MethodConfig) {
     let totalCredits = 0;
     let uncreditedPrimaryXp = 0;
     let uncreditedSecXp = 0;
+    
+    let totalKills = 0;
 
     let creditsFromLevels = 0;
     let creditsFromHpLevels = 0;
@@ -100,6 +120,12 @@ export function useCreditCalculation(initialConfig: MethodConfig) {
           creditsFromSecLevels: 0,
           creditsFromKills: 0,
           creditsFromSkillingXp: 0
+        },
+        stats: {
+          totalKills: 0,
+          primaryXpGained: 0,
+          secXpGained: 0,
+          hpXpGained: 0
         }
       };
     }
@@ -138,22 +164,25 @@ export function useCreditCalculation(initialConfig: MethodConfig) {
 
       // Combat specifics
       if (isCombat) {
-        const stepHpXp = hpXpRate * actualStepHours;
-        currentHpXp += stepHpXp;
-        const newHpLevel = levelForExperience(currentHpXp);
-        
-        if (newHpLevel > previousHpLevel) {
-          for (let l = previousHpLevel + 1; l <= Math.min(newHpLevel, 99); l++) {
-            const reward = levelUpReward(l);
-            totalCredits += reward;
-            creditsFromHpLevels += reward;
+        if (isHpEnabled) {
+          const stepHpXp = hpXpRate * actualStepHours;
+          currentHpXp += stepHpXp;
+          const newHpLevel = levelForExperience(currentHpXp);
+          
+          if (newHpLevel > previousHpLevel) {
+            for (let l = previousHpLevel + 1; l <= Math.min(newHpLevel, 99); l++) {
+              const reward = levelUpReward(l);
+              totalCredits += reward;
+              creditsFromHpLevels += reward;
+            }
+            previousHpLevel = newHpLevel;
           }
-          previousHpLevel = newHpLevel;
         }
 
         if (monster) {
           const xpPerKill = 4.0 * monster.hitpoints;
           const kills = stepPrimaryXp / xpPerKill;
+          totalKills += kills;
           const reward = kills * monster.combatLevel;
           totalCredits += reward;
           creditsFromKills += reward;
@@ -222,6 +251,12 @@ export function useCreditCalculation(initialConfig: MethodConfig) {
         creditsFromSecLevels: Math.round(creditsFromSecLevels),
         creditsFromKills: Math.round(creditsFromKills),
         creditsFromSkillingXp: Math.round(creditsFromSkillingXp)
+      },
+      stats: {
+        totalKills: Math.round(totalKills),
+        primaryXpGained: Math.round(currentXp - startXp),
+        secXpGained: Math.round(currentSecXp - (secEnabled ? experienceForLevel(startSecLevel) : 0)),
+        hpXpGained: Math.round(currentHpXp - experienceForLevel(startHpLevel)),
       }
     };
   }, [config]);
