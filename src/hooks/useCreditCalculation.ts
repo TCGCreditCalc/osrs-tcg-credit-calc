@@ -31,6 +31,7 @@ export interface DataPoint {
   level: number;
   totalCredits: number;
   creditsPerHour: number;
+  marginalCreditsPerHour: number;
   packsPerHour: number;
   totalXp: number;
 }
@@ -139,20 +140,23 @@ export function useCreditCalculation(initialConfig: MethodConfig) {
       };
     }
 
-    // Instead of time, we simulate very small time slices and record a datapoint every time the PRIMARY skill levels up.
-    // To be perfectly accurate and simple, we'll step by 0.1 hours (6 minutes) and break when target XP is reached.
-    const stepHours = 0.1;
+    // Instead of arbitrary time slices, we step exactly to the next primary level boundary or the target XP.
+    // This ensures every datapoint plotted is mathematically identical to stopping the grind at that exact level.
     let t = 0;
+    let lastTime = 0;
+    let lastCredits = 0;
     
     while (currentXp < targetXp) {
-      // Calculate how much XP to give this tick. If we would overshoot target, cap it.
-      let stepPrimaryXp = xpPerHour * stepHours;
-      let actualStepHours = stepHours;
+      const currentLevel = levelForExperience(currentXp);
+      const nextLevelXp = experienceForLevel(currentLevel + 1);
       
+      // Calculate how much XP to jump to hit the very next level, capped by our final target
+      let stepPrimaryXp = nextLevelXp - currentXp;
       if (currentXp + stepPrimaryXp > targetXp) {
         stepPrimaryXp = targetXp - currentXp;
-        actualStepHours = stepPrimaryXp / xpPerHour;
       }
+      
+      const actualStepHours = stepPrimaryXp / xpPerHour;
 
       t += actualStepHours;
       currentXp += stepPrimaryXp;
@@ -236,14 +240,23 @@ export function useCreditCalculation(initialConfig: MethodConfig) {
       // Add a data point if the primary skill leveled up OR if this is the absolute final tick
       if (didPrimaryLevelUp || currentXp >= targetXp) {
         const creditsPerHour = t > 0 ? totalCredits / t : 0;
+        
+        const timeDelta = t - lastTime;
+        const creditsDelta = totalCredits - lastCredits;
+        const marginalCreditsPerHour = timeDelta > 0 ? creditsDelta / timeDelta : 0;
+        
         dataPoints.push({
           time: Number(t.toFixed(2)),
           level: newLevel,
           totalCredits: Math.round(totalCredits),
           creditsPerHour: Math.round(creditsPerHour),
+          marginalCreditsPerHour: Math.round(marginalCreditsPerHour),
           packsPerHour: Number((creditsPerHour / 1000).toFixed(1)),
           totalXp: Math.round(currentXp),
         });
+        
+        lastTime = t;
+        lastCredits = totalCredits;
       }
     }
 

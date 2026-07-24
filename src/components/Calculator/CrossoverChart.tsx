@@ -24,6 +24,8 @@ export const CrossoverChart: React.FC<ChartProps> = ({
   method2Data,
   method2Name,
 }) => {
+  const [metric, setMetric] = React.useState<'marginal' | 'cumulative'>('marginal');
+
   // Merge data points by level instead of time
   const allLevels = new Set([
     ...method1Data.map(d => d.level),
@@ -37,16 +39,31 @@ export const CrossoverChart: React.FC<ChartProps> = ({
     const d2 = method2Data ? method2Data.find(d => d.level === level) : null;
     return {
       level,
-      [method1Name]: d1 ? d1.creditsPerHour : null,
-      ...(method2Data && method2Name ? { [method2Name]: d2 ? d2.creditsPerHour : null } : {})
+      [method1Name]: d1 ? (metric === 'marginal' ? d1.marginalCreditsPerHour : d1.creditsPerHour) : null,
+      ...(method2Data && method2Name ? { [method2Name]: d2 ? (metric === 'marginal' ? d2.marginalCreditsPerHour : d2.creditsPerHour) : null } : {})
     };
   });
 
   return (
-    <div style={{ width: '100%', height: 400 }}>
-      <ResponsiveContainer>
-        <LineChart
-          data={mergedData}
+    <div style={{ width: '100%', height: 450, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', gap: '1rem' }}>
+        <button 
+          onClick={() => setMetric('marginal')}
+          style={{ padding: '0.4rem 1rem', background: metric === 'marginal' ? '#f39c12' : '#333', color: metric === 'marginal' ? '#000' : '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+        >
+          Level-by-Level Rate
+        </button>
+        <button 
+          onClick={() => setMetric('cumulative')}
+          style={{ padding: '0.4rem 1rem', background: metric === 'cumulative' ? '#f39c12' : '#333', color: metric === 'cumulative' ? '#000' : '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+        >
+          Cumulative Average
+        </button>
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <ResponsiveContainer>
+          <LineChart
+            data={mergedData}
           margin={{
             top: 20,
             right: 30,
@@ -91,8 +108,9 @@ export const CrossoverChart: React.FC<ChartProps> = ({
               connectNulls={true}
             />
           )}
-        </LineChart>
-      </ResponsiveContainer>
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };

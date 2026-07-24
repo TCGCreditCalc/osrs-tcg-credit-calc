@@ -6,15 +6,19 @@ import { CrossoverChart } from './CrossoverChart';
 import { POPULAR_MONSTERS } from '../../utils/data';
 import { LevelRewardsModal } from './LevelRewardsModal';
 
-const getDisplayTitle = (config: MethodConfig) => {
+const getDisplayTitle = (config: MethodConfig, suffix?: string) => {
+  let baseTitle = '';
   if (config.skillType === 'skilling') {
-    return 'Skilling Method';
+    baseTitle = 'Skilling Method';
+  } else {
+    const combatStyle = config.skillType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    if (config.monster) {
+      baseTitle = `${combatStyle} vs ${config.monster.name}`;
+    } else {
+      baseTitle = `${combatStyle} Method`;
+    }
   }
-  const combatStyle = config.skillType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-  if (config.monster) {
-    return `${combatStyle} vs ${config.monster.name}`;
-  }
-  return `${combatStyle} Method`;
+  return suffix ? `${baseTitle} (${suffix})` : baseTitle;
 };
 
 const MethodInput: React.FC<{
@@ -47,7 +51,7 @@ const MethodInput: React.FC<{
     }, 0);
   };
 
-  const displayTitle = React.useMemo(() => getDisplayTitle(config), [config]);
+  const displayTitle = React.useMemo(() => getDisplayTitle(config, config.id === 'method1' ? 'A' : 'B'), [config]);
 
   return (
     <div className="card" style={{ padding: '1rem', backgroundColor: '#1f1f1f', borderRadius: '8px', marginBottom: '1rem' }}>
@@ -353,9 +357,9 @@ export const MethodComparison: React.FC = () => {
         <h2 style={{ textAlign: 'center', marginTop: 0, color: '#f39c12' }}>Diminishing Returns Plotter (Credits/Hr vs Level)</h2>
         <CrossoverChart 
           method1Data={method1.results.dataPoints} 
-          method1Name={getDisplayTitle(method1.config)}
+          method1Name={getDisplayTitle(method1.config, 'A')}
           method2Data={method2.results.dataPoints}
-          method2Name={getDisplayTitle(method2.config)}
+          method2Name={getDisplayTitle(method2.config, 'B')}
         />
       </div>
     </div>
